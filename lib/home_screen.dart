@@ -192,10 +192,21 @@ class _HomeScreenState extends State<HomeScreen> {
           return TextField(
             controller: controller,
             focusNode: focusNode,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Search books...',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.search),
+              suffixIcon:
+                  controller.text.isEmpty
+                      ? null
+                      : GestureDetector(
+                        onTap: () {
+                          controller.clear();
+                          setState(() => _searchQuery = '');
+                          focusNode.unfocus();
+                        },
+                        child: Icon(Icons.clear),
+                      ),
             ),
             onChanged: (val) {
               setState(() => _searchQuery = val);
@@ -208,9 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Material(
               elevation: 4,
               child: SizedBox(
-                width:
-                    MediaQuery.of(context).size.width -
-                    32, // Adjust for padding
+                width: MediaQuery.of(context).size.width - 32,
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: options.length,
