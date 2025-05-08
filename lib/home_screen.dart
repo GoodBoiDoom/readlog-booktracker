@@ -24,7 +24,34 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Book> _bookList = [];
+  final List<Book> _bookList = [
+    Book(
+      title: 'The Alchemist',
+      author: 'Paulo Coelho',
+      status: BookStatus.completed,
+    ),
+    Book(
+      title: 'Atomic Habits',
+      author: 'James Clear',
+      status: BookStatus.reading,
+    ),
+    Book(
+      title: 'Sapiens',
+      author: 'Yuval Noah Harari',
+      status: BookStatus.wishList,
+    ),
+    Book(title: '1984', author: 'George Orwell', status: BookStatus.completed),
+    Book(
+      title: 'To Kill a Mockingbird',
+      author: 'Harper Lee',
+      status: BookStatus.reading,
+    ),
+    Book(
+      title: 'The Great Gatsby',
+      author: 'F. Scott Fitzgerald',
+      status: BookStatus.wishList,
+    ),
+  ];
 
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
@@ -149,13 +176,56 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: TextField(
-        decoration: const InputDecoration(
-          hintText: 'Search books...',
-          border: OutlineInputBorder(),
-          prefixIcon: Icon(Icons.search),
-        ),
-        onChanged: (value) => setState(() => _searchQuery = value),
+      child: Autocomplete<Book>(
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          if (textEditingValue.text.isEmpty) {
+            return const Iterable<Book>.empty();
+          }
+          return _bookList.where((book) {
+            final combined = '${book.title} by ${book.author}'.toLowerCase();
+            return combined.contains(textEditingValue.text.toLowerCase());
+          });
+        },
+        displayStringForOption:
+            (Book book) => '${book.title} by ${book.author}',
+        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+          return TextField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: const InputDecoration(
+              hintText: 'Search books...',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (val) {
+              setState(() => _searchQuery = val);
+            },
+          );
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              child: SizedBox(
+                width:
+                    MediaQuery.of(context).size.width -
+                    32, // Adjust for padding
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  itemBuilder: (context, index) {
+                    final book = options.elementAt(index);
+                    return ListTile(
+                      title: Text('${book.title} by ${book.author}'),
+                      onTap: () => onSelected(book),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

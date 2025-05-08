@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:readlog/home_screen.dart';
 
 void main(List<String> args) {
@@ -13,6 +14,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ReadLog',
       initialRoute: '/',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        textTheme: GoogleFonts.interTextTheme(),
+      ),
       routes: {'/': (context) => const HomeScreen()},
     );
   }
