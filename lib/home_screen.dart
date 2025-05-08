@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:readlog/mock_books.dart';
 
 class Book {
   final String title;
@@ -24,41 +25,19 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Book> _bookList = [
-    Book(
-      title: 'The Alchemist',
-      author: 'Paulo Coelho',
-      status: BookStatus.completed,
-    ),
-    Book(
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      status: BookStatus.reading,
-    ),
-    Book(
-      title: 'Sapiens',
-      author: 'Yuval Noah Harari',
-      status: BookStatus.wishList,
-    ),
-    Book(title: '1984', author: 'George Orwell', status: BookStatus.completed),
-    Book(
-      title: 'To Kill a Mockingbird',
-      author: 'Harper Lee',
-      status: BookStatus.reading,
-    ),
-    Book(
-      title: 'The Great Gatsby',
-      author: 'F. Scott Fitzgerald',
-      status: BookStatus.wishList,
-    ),
-  ];
-
+  final List<Book> _bookList = mockBooks;
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
+  String _searchQuery = '';
   BookStatus? _statusFilter;
   BookStatus? _dialogStatus;
-  String _searchQuery = '';
+
+  bool _showFab = true;
+  bool _showFilters = true;
+
+  double _lastOffset = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -69,99 +48,167 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('My Books'),
         forceMaterialTransparency: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(68),
-          child: _buildSearchBar(),
+          preferredSize: Size.fromHeight(_showFilters ? 120 : 0),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child:
+                _showFilters
+                    ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildSearchAndFilterSection(),
+                    )
+                    : const SizedBox.shrink(),
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBookDialog,
-        child: const Icon(Icons.add),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildFilterChips(),
-          Expanded(
-            child:
-                books.isEmpty
-                    ? const Center(
-                      child: Text('No books found. Tap + to add one.'),
-                    )
-                    : ListView.builder(
-                      itemCount: books.length,
-                      itemBuilder:
-                          (context, index) =>
-                              _buildBookCard(books[index], index),
-                    ),
-          ),
-        ],
+      floatingActionButton:
+          _showFab
+              ? FloatingActionButton(
+                onPressed: _showAddBookDialog,
+                child: const Icon(Icons.add),
+              )
+              : null,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          children: [
+            Expanded(
+              child:
+                  books.isEmpty
+                      ? const Center(
+                        child: Text('No books found. Tap + to add one.'),
+                      )
+                      : ListView.separated(
+                        controller: _scrollController,
+                        itemCount: books.length,
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemBuilder:
+                            (context, index) =>
+                                _buildBookCard(books[index], index),
+                        separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _authorController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      final currentOffset = _scrollController.offset;
+
+      if (currentOffset > _lastOffset + 5 && _showFab) {
+        setState(() {
+          _showFab = false;
+          _showFilters = false;
+        });
+      } else if (currentOffset < _lastOffset - 5 && !_showFab) {
+        setState(() {
+          _showFab = true;
+          _showFilters = true;
+        });
+      }
+
+      _lastOffset = currentOffset;
+    });
+  }
+
   Widget _buildBookCard(Book book, int index) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            book.title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(book.author, style: const TextStyle(color: Colors.black87)),
-              const SizedBox(height: 4),
-              Chip(
-                label: Text(book.status.label),
-                backgroundColor: book.status.color.withValues(alpha: 0.1),
-                shape: StadiumBorder(
-                  side: BorderSide(color: book.status.color),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 75),
+                child: Image.network(
+                  'https://covers.openlibrary.org/b/id/6424160-M.jpg',
+                  fit: BoxFit.scaleDown,
                 ),
               ),
-            ],
-          ),
-          trailing: Wrap(
-            spacing: 8,
-            children: [
-              IconButton(
-                icon: Icon(
-                  book.isFavourite ? Icons.favorite : Icons.favorite_border,
-                  color: book.isFavourite ? Colors.red : null,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    book.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    book.author,
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                  ),
+                  const SizedBox(height: 6),
+                  Chip(
+                    label: Text(book.status.label),
+                    backgroundColor: book.status.color.withOpacity(0.1),
+                    shape: StadiumBorder(
+                      side: BorderSide(color: book.status.color),
+                    ),
+                    labelStyle: TextStyle(
+                      color: book.status.color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    book.isFavourite ? Icons.favorite : Icons.favorite_border,
+                    color: book.isFavourite ? Colors.red : null,
+                  ),
+                  onPressed:
+                      () =>
+                          setState(() => book.isFavourite = !book.isFavourite),
                 ),
-                onPressed: () {
-                  setState(() => book.isFavourite = !book.isFavourite);
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () {
-                  setState(() => _bookList.removeAt(index));
-                },
-              ),
-            ],
-          ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => setState(() => _bookList.removeAt(index)),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildFilterChips() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Wrap(
         spacing: 8,
         children:
             BookStatus.values.map((status) {
-              final isSelected = _statusFilter == status;
+              final selected = _statusFilter == status;
               return ChoiceChip(
                 label: Text(status.label),
-                selected: isSelected,
+                selected: selected,
                 onSelected: (selected) {
                   setState(() {
                     _statusFilter = selected ? status : null;
@@ -173,69 +220,47 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildSearchAndFilterSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          switchInCurve: Curves.easeIn,
+          switchOutCurve: Curves.easeOut,
+          child:
+              _showFilters
+                  ? _buildSearchBar()
+                  : const SizedBox(key: ValueKey('empty'), height: 0),
+        ),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          switchInCurve: Curves.easeIn,
+          switchOutCurve: Curves.easeOut,
+          child:
+              _showFilters
+                  ? Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildFilterChips(),
+                  )
+                  : const SizedBox(key: ValueKey('empty2'), height: 0),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Autocomplete<Book>(
-        optionsBuilder: (TextEditingValue textEditingValue) {
-          if (textEditingValue.text.isEmpty) {
-            return const Iterable<Book>.empty();
-          }
-          return _bookList.where((book) {
-            final combined = '${book.title} by ${book.author}'.toLowerCase();
-            return combined.contains(textEditingValue.text.toLowerCase());
-          });
-        },
-        displayStringForOption:
-            (Book book) => '${book.title} by ${book.author}',
-        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-          return TextField(
-            controller: controller,
-            focusNode: focusNode,
-            decoration: InputDecoration(
-              hintText: 'Search books...',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.search),
-              suffixIcon:
-                  controller.text.isEmpty
-                      ? null
-                      : GestureDetector(
-                        onTap: () {
-                          controller.clear();
-                          setState(() => _searchQuery = '');
-                          focusNode.unfocus();
-                        },
-                        child: Icon(Icons.clear),
-                      ),
-            ),
-            onChanged: (val) {
-              setState(() => _searchQuery = val);
-            },
-          );
-        },
-        optionsViewBuilder: (context, onSelected, options) {
-          return Align(
-            alignment: Alignment.topLeft,
-            child: Material(
-              elevation: 4,
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width - 32,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  itemBuilder: (context, index) {
-                    final book = options.elementAt(index);
-                    return ListTile(
-                      title: Text('${book.title} by ${book.author}'),
-                      onTap: () => onSelected(book),
-                    );
-                  },
-                ),
-              ),
-            ),
-          );
-        },
+    return TextField(
+      key: const ValueKey('searchBar'),
+      decoration: const InputDecoration(
+        hintText: 'Search books...',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.search),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
+      onChanged: (val) => setState(() => _searchQuery = val),
     );
   }
 
@@ -268,15 +293,26 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 TextField(
                   controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Book Title'),
+                  decoration: const InputDecoration(
+                    labelText: 'Book Title',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _authorController,
-                  decoration: const InputDecoration(labelText: 'Author'),
+                  decoration: const InputDecoration(
+                    labelText: 'Author',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
+                const SizedBox(height: 8),
                 DropdownButtonFormField<BookStatus>(
                   value: _dialogStatus,
-                  decoration: const InputDecoration(labelText: 'Status'),
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
                   items:
                       BookStatus.values.map((status) {
                         return DropdownMenuItem(
@@ -300,9 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   if (_titleController.text.isEmpty ||
                       _authorController.text.isEmpty ||
-                      _dialogStatus == null) {
+                      _dialogStatus == null)
                     return;
-                  }
 
                   setState(() {
                     _bookList.add(
@@ -313,7 +348,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   });
-
                   _clearForm();
                   Navigator.pop(context);
                 },
