@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
           preferredSize: Size.fromHeight(_showFilters ? 120 : 0),
           child: AnimatedSize(
             duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
+            curve: Curves.linear,
             child:
                 _showFilters
                     ? Padding(
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 6),
                   Chip(
                     label: Text(book.status.label),
-                    backgroundColor: book.status.color.withOpacity(0.1),
+                    backgroundColor: book.status.color.withValues(alpha: 0.1),
                     shape: StadiumBorder(
                       side: BorderSide(color: book.status.color),
                     ),
@@ -336,8 +336,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   if (_titleController.text.isEmpty ||
                       _authorController.text.isEmpty ||
-                      _dialogStatus == null)
+                      _dialogStatus == null) {
                     return;
+                  }
 
                   setState(() {
                     _bookList.add(
